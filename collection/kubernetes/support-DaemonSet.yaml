@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: support-tool
+  labels:
+    app: support-tool
+spec:
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: support-tool
+  template:
+    metadata:
+      name: support-tool
+      labels:
+        app: support-tool
+    spec:
+      tolerations:
+      # this toleration is to have the daemonset runnable on master nodes
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
+      hostPID: true
+      hostNetwork: true
+      initContainers:
+      - name: init-nsenter
+        image: quay.io/kubermatic/support:0.0.1-0
+        imagePullPolicy: Always
+        command:
+        - cp
+        - "/support/collect-data.sh"
+        - "/tmp//collect-data.sh"
+        volumeMounts:
+        - mountPath: "/tmp"
+          name: tmp
+      containers:
+      - name: nsenter
+        image: quay.io/kubermatic/support:0.0.1-0
+        imagePullPolicy: Always
+        command:
+        - "/bin/sh"
+        args:
+        - "-c"
+        - nsenter -t 1 -u -i -n -p -m sh /tmp/collect-data.sh
+        stdin: true
+        tty: true
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: "/tmp"
+          name: tmp
+      volumes:
+      - name: tmp
+        hostPath:
+          path: "/tmp"
+          type: Directory
