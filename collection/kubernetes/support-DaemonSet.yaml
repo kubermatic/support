@@ -29,7 +29,7 @@ spec:
         command:
         - cp
         - "/support/collect-data.sh"
-        - "/tmp//collect-data.sh"
+        - "/tmp/collect-data.sh"
         volumeMounts:
         - mountPath: "/tmp"
           name: tmp
