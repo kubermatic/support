@@ -88,7 +88,7 @@ colletNodeLogs() {
     pods=$(kubectl get pods -l app=support-tool  --no-headers -o custom-columns=":metadata.name")
     echo "Waiting for Collector Pods to be ready"
     kubectl wait --for=condition=Ready pod -l app=support-tool
-    echo "Logs are created"
+    echo "Creating Logs"
     sleep 60
     for pod in ${pods}
     do
@@ -107,6 +107,8 @@ createDump() {
     echo
     echo
     echo "Support collection Name: $output_file"
+    echo
+    echo "!!!Please note: This file can contain sensitive data from various logs and Kubernetes manifests!!!"
     echo "Please upload the file $output_file to https://kubermatic.support"
 }
 

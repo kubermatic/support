@@ -17,9 +17,10 @@ spec:
         app: support-tool
     spec:
       tolerations:
-      # this toleration is to have the daemonset runnable on master nodes
-      - key: node-role.kubernetes.io/master
-        effect: NoSchedule
+      - effect: NoExecute
+        operator: Exists
+      - effect: NoSchedule
+        operator: Exists
       hostPID: true
       hostNetwork: true
       initContainers:
