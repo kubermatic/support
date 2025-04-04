@@ -28,7 +28,7 @@ trap cleanup INT
 
 
 checkKubeCtl() {
-    test=$(kubectl version --short)
+    test=$(kubectl version)
     if [ $? -eq 1 ]; then
         echo "Won't collect cluster-info dump as there is problem connecting kubelet to the kube-api server"
         exit 1
@@ -93,23 +93,23 @@ colletNodeLogs() {
     for pod in ${pods}
     do
         node=$(kubectl get pods -l app=support-tool --field-selector metadata.name==${pod} --no-headers -o custom-columns=":spec.nodeName")
-        echo $pod
-        echo $node
-        echo ${pod}:tmp/${node}-info.tar.gz
-        kubectl cp ${pod}:tmp/${node}-info.tar.gz ${tmp_dir}/${node}-info.tar.gz 
+        # echo $pod
+        # echo $node
+        # echo ${pod}:/tmp/${node}-node.tar.gz
+        kubectl cp -c nsenter ${pod}:/tmp/${node}-node.tar.gz ${tmp_dir}/${node}-node.tar.gz 
     done
-    #kubectl delete -f support-DaemonSet.yaml
+    kubectl delete -f support-DaemonSet.yaml
 }
 
 createDump() {
     echo "Create cluster dump..."
-    tar -czf ${output_file} ${tmp_dir}
+    tar -P -czf ${output_file} ${tmp_dir}
     echo
     echo
     echo "Support collection Name: $output_file"
     echo
     echo "!!!Please note: This file can contain sensitive data from various logs and Kubernetes manifests!!!"
-    echo "Please upload the file $output_file to https://kubermatic.support"
+    echo "Please upload the file $output_file to https://support.kubermatic.com"
 }
 
 

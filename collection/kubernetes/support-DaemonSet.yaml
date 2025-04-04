@@ -42,7 +42,7 @@ spec:
         - "/bin/sh"
         args:
         - "-c"
-        - nsenter -t 1 -u -i -n -p -m sh /tmp/collect-data.sh
+        - nsenter -t 1 -m -u -i -n -p -- bash /tmp/collect-data.sh
         stdin: true
         tty: true
         securityContext:

@@ -5,8 +5,8 @@
 
 log_time=$(date +%s)
 host_name=$(hostname)
-tmp_dir=/tmp/${host_name}-info-${log_time}
-output_file=/tmp/${host_name}-info.tar.gz
+tmp_dir=${host_name}-node-${log_time}
+output_file=${host_name}-node.tar.gz
 
 
 cleanup() {
@@ -26,11 +26,12 @@ trap cleanup EXIT
 trap cleanup INT
 
 setupLogDirectory() {
+    cd /tmp
     rm -rf $tmp_dir
     rm -rf $output_file
     echo "Temp directory where the logs are stored $tmp_dir"
     echo "Support collection Name: $output_file"
-    mkdir -p ${tmp_dir}
+    mkdir ${tmp_dir}
 }
 
 colletOSLogs() {
@@ -74,10 +75,10 @@ colletProcessesLogs() {
 
 colletNetworkLogs() {
     echo "Collect Network Logs"
-    sudo ifconfig -a > ${tmp_dir}/ifconfig-a.txt
-    sudo netstat -anp > ${tmp_dir}/netstat-anp.txt
-    sudo netstat -aens > ${tmp_dir}/netstat-aens.txt
-    sudo route > ${tmp_dir}/route.txt
+    sudo ip address > ${tmp_dir}/ip-address.txt
+    sudo ss -anp > ${tmp_dir}/ss-anp.txt
+    sudo ss -aens > ${tmp_dir}/ss-aens.txt
+    sudo ip route > ${tmp_dir}/route.txt
 # Information about ARP cache
     sudo arp -a > ${tmp_dir}/arp-a.txt
 # Check local firewall rules
@@ -142,8 +143,7 @@ createLogFile() {
 }
 
 pause(){
- read -s -n 1 -p "Press any key to continue . . ."
-
+   read -s -n 1 -p "Press any key to continue . . ."
 }
  
 

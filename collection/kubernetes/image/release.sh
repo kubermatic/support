@@ -5,5 +5,5 @@ VERSION=0.0.1
 
 set -euox pipefail
 
-docker build --no-cache --pull -t quay.io/kubermatic/support:${VERSION}-${NUMBER} .
-docker push quay.io/kubermatic/support:${VERSION}-${NUMBER}
+docker build --platform=amd64,arm64 --no-cache -t quay.io/kubermatic/support:${VERSION}-${NUMBER} .
+docker push --all-platforms quay.io/kubermatic/support:${VERSION}-${NUMBER}
