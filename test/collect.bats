@@ -93,3 +93,8 @@ lib() {
     run grep -nE '>[[:space:]]*[^&[:space:]]' "$COLLECT_SH"
     [ -z "$(printf '%s\n' "$output" | grep -v '/dev/null' || true)" ]
 }
+
+@test "every module has a collect function" {
+    lib 'for m in $MODULES; do command -v "collect_$m" >/dev/null || { echo "missing collect_$m"; exit 1; }; done'
+    [ "$status" -eq 0 ]
+}
