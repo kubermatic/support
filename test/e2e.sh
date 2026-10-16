@@ -9,10 +9,13 @@ IMAGE=${IMAGE:-quay.io/kubermatic/support:dev}
 OUT=${OUT:-$ROOT/_output/e2e}
 export PATH="$ROOT/.tools/bin:$PATH"
 
+created_cluster=
 cleanup() {
-    if [ -z "${KEEP_CLUSTER:-}" ]; then
+    status=$?
+    if [ -n "$created_cluster" ] && [ -z "${KEEP_CLUSTER:-}" ]; then
         kind delete cluster --name "$CLUSTER"
     fi
+    exit "$status"
 }
 trap cleanup EXIT
 
@@ -21,6 +24,7 @@ mkdir -p "$OUT"
 
 if ! kind get clusters | grep -qx "$CLUSTER"; then
     kind create cluster --name "$CLUSTER" --config "$ROOT/test/kind-config.yaml" --wait 180s
+    created_cluster=1
 fi
 kind get kubeconfig --name "$CLUSTER" >"$OUT/kubeconfig"
 export KUBECONFIG="$OUT/kubeconfig"

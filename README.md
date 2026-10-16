@@ -32,10 +32,13 @@ analyse problems without access to your environment. Built on
   - `node-kubernetes`: kubelet and containerd units and configuration,
     container runtime state, static pod manifests, certificate expiry dates.
 
-Nothing is written to the nodes. Private keys, kubeconfigs and Secret contents
-are not collected; registry credentials in containerd configuration, credential
-values in cloud-init logs, and values of command-line flags such as `--token`,
-`--password` or `--client-secret` are replaced with `REDACTED`, and Troubleshoot's
+Nothing is written to the nodes. Each node module stops after about 100
+seconds, so a hung node still returns partial data. Private keys, kubeconfigs
+and Secret contents are not collected; PEM private key blocks and kubeconfig
+`client-key-data` are redacted from all node output, registry credentials in
+containerd configuration, credential values in cloud-init logs, and values of
+command-line flags such as `--token`, `--password` or `--client-secret` are
+replaced with `REDACTED` (credential names are matched case-insensitively), and Troubleshoot's
 built-in redactors are applied to the whole bundle. Review the bundle before
 uploading if your policies require it.
 

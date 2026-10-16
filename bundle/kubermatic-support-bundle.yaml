@@ -6,6 +6,10 @@
 # reads diagnostics from each node (nothing is written to the nodes) and is
 # deleted afterwards. Air-gapped: mirror quay.io/kubermatic/support and
 # replace every image reference below.
+#
+# node-collector/collect.sh stops starting new sections after MODULE_DEADLINE
+# (100s), so a node with a hung service still returns partial output within
+# the 150s collector timeout.
 apiVersion: troubleshoot.sh/v1beta2
 kind: SupportBundle
 metadata:
