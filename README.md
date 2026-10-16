@@ -51,24 +51,5 @@ Mirror `quay.io/kubermatic/support:v0.1.0` into your registry, download
 
 ## Development
 
-```bash
-make tools   # pinned support-bundle, yq and bats in .tools/
-make lint    # shellcheck
-make test    # unit and spec tests
-make e2e     # kind-based end-to-end test (KEEP_CLUSTER=1 keeps the cluster)
-make release # multi-arch image push for the version in node-collector/VERSION
-```
+See [DEVELOPMENT.md](DEVELOPMENT.md) for building, testing and releasing.
 
-Releasing: bump `node-collector/VERSION` and the image tags in
-`bundle/kubermatic-support-bundle.yaml` (enforced by `make test`), run
-`make release`, then tag the repository with the same version so the
-raw URL above resolves.
-
-## Legacy scripts
-
-`collection/kubernetes/support.sh` is the previous collection approach. It is
-kept until the support bundle covers the same cluster-level data and will be
-removed afterwards.
-
-<!-- explicitly send a `page` query parameter to Scarf to work around GitHub pre-caching -->
-<img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=89abb35c-9553-4806-9a74-ee8ccbb99ac0&page=README.md" />
