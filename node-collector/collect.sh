@@ -8,18 +8,62 @@
 # The sh -c scripts are single-quoted on purpose: they expand in the inner shell.
 # shellcheck disable=SC2016
 MODULES="system journal network kubernetes"
-SECTION_TIMEOUT="${SECTION_TIMEOUT:-60}"
+SECTION_TIMEOUT="${SECTION_TIMEOUT:-30}"
+# Stop starting sections after this many seconds so output arrives before the collector timeout.
+MODULE_DEADLINE="${MODULE_DEADLINE:-100}"
 JOURNAL_SINCE="${JOURNAL_SINCE:--48h}"
 CRI_ENDPOINT="${CRI_ENDPOINT:-unix:///run/containerd/containerd.sock}"
-REDACT_SED='s/("?(password|auth|[Aa]uthorization|identitytoken|identityToken|registrytoken|registryToken|token)"?[[:space:]]*[:=][[:space:]]*).*/\1"REDACTED"/'
-REDACT_ARGS_SED='s/(^|[[:space:]"'"'"'])(--[A-Za-z0-9_-]*(token|password|secret|certificate-key)[= ]+)[^[:space:]"'"'"',]+/\1\2REDACTED/g'
+# POSIX sed has no I flag: _ci turns a lowercase word into a bracket regex ([pP][aA]...).
+_ci() {
+    _ci_out=
+    _ci_rest=$1
+    while [ -n "$_ci_rest" ]; do
+        _ci_c=${_ci_rest%"${_ci_rest#?}"}
+        _ci_rest=${_ci_rest#?}
+        _ci_cls=$_ci_c
+        for _ci_p in aA bB cC dD eE fF gG hH iI jJ kK lL mM nN oO pP qQ rR sS tT uU vV wW xX yY zZ; do
+            if [ "${_ci_p%?}" = "$_ci_c" ]; then
+                _ci_cls="[$_ci_p]"
+                break
+            fi
+        done
+        _ci_out="$_ci_out$_ci_cls"
+    done
+}
+
+# _ci_join word... sets _CI_ALT to (word1|word2|...) with every word case-insensitive.
+_ci_join() {
+    _CI_ALT=
+    for _ci_w in "$@"; do
+        _ci "$_ci_w"
+        _CI_ALT="$_CI_ALT|$_ci_out"
+    done
+    _CI_ALT="(${_CI_ALT#|})"
+}
+
+_ci_join api access secret private
+_CI_KIND=$_CI_ALT
+_ci key
+_CI_KEY=$_ci_out
+_ci_join password passwd auth authorization token secret credential credentials
+_CI_NAMES=$_CI_ALT
+REDACT_SED='s/("?('"${_CI_NAMES}|${_CI_KIND}[_-]?${_CI_KEY}"')"?[[:space:]]*[:=][[:space:]]*).*/\1"REDACTED"/'
+
+_ci_join token password secret certificate-key credential credentials
+_CI_FLAGS=$_CI_ALT
+REDACT_ARGS_SED='s/(^|[[:space:]"'"'"'])(--[A-Za-z0-9_-]*('"${_CI_FLAGS}|${_CI_KIND}-${_CI_KEY}"')[= ]+)[^[:space:]"'"'"',]+/\1\2REDACTED/g'
+
+# Applied to every section: PEM private keys and kubeconfig key data.
+REDACT_PEM_LINE_SED='s/-----BEGIN [A-Z ]*PRIVATE KEY-----.*-----END [A-Z ]*PRIVATE KEY-----/[REDACTED PRIVATE KEY]/'
+REDACT_PEM_BLOCK_SED='/-----BEGIN [A-Z ]*PRIVATE KEY-----/,/-----END [A-Z ]*PRIVATE KEY-----/{/-----(BEGIN|END) [A-Z ]*PRIVATE KEY-----/!s/.*/REDACTED/;}'
+REDACT_KEY_DATA_SED='s/(client-key-data"?[[:space:]]*:[[:space:]]*"?)[^"[:space:],]+/\1REDACTED/'
 
 # stdin is the script itself, so commands must never read it.
 if timeout 1 true </dev/null >/dev/null 2>&1; then _HAVE_TIMEOUT=1; else _HAVE_TIMEOUT=; fi
 
 _run() {
     if [ -n "$_HAVE_TIMEOUT" ]; then
-        timeout "$SECTION_TIMEOUT" "$@" </dev/null
+        timeout "$_timeout" "$@" </dev/null
     else
         "$@" </dev/null
     fi
@@ -40,13 +84,22 @@ _section() {
     shift 3
     _rc=
     printf '===== BEGIN %s =====\n$ %s\n' "$_title" "$*"
-    if ! command -v "$1" >/dev/null 2>&1; then
+    _timeout=$SECTION_TIMEOUT
+    _remaining=
+    if [ -n "${_MODULE_START:-}" ]; then
+        _remaining=$((MODULE_DEADLINE - ($(date +%s) - _MODULE_START)))
+        if [ "$_remaining" -lt "$_timeout" ]; then _timeout=$_remaining; fi
+    fi
+    if [ -n "$_remaining" ] && [ "$_remaining" -le 0 ]; then
+        printf '(skipped: module deadline of %ss reached)\n' "$MODULE_DEADLINE"
+        _rc=skipped
+    elif ! command -v "$1" >/dev/null 2>&1; then
         printf '(command not found: %s)\n' "$1"
         _rc=127
     else
         # fd 3 carries the command's exit code past the redaction/limit pipe.
         {
-            _rc=$({ { _run "$@" 2>&1; echo "$?" >&3; } | sed -E "$REDACT_ARGS_SED" | _limit_output "$_mode" "$_limit" >&4; } 3>&1)
+            _rc=$({ { _run "$@" 2>&1; echo "$?" >&3; } | sed -E -e "$REDACT_ARGS_SED" -e "$REDACT_PEM_LINE_SED" -e "$REDACT_PEM_BLOCK_SED" -e "$REDACT_KEY_DATA_SED" | _limit_output "$_mode" "$_limit" >&4; } 3>&1)
         } 4>&1
         if [ "$_mode" != all ]; then
             if [ "$_mode" = head ]; then _which=first; else _which=last; fi
@@ -158,6 +211,7 @@ main() {
             return 2
             ;;
     esac
+    _MODULE_START=$(date +%s)
     print_header "$_module"
     "collect_$_module"
 }
