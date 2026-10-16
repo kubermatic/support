@@ -15,3 +15,6 @@ test: tools
 
 image:
 	docker build --build-arg VERSION=$$(cat node-collector/VERSION) -t $(IMAGE):dev node-collector
+
+e2e: tools
+	test/e2e.sh
