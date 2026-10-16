@@ -1,0 +1,131 @@
+# Kubermatic support bundle.
+#
+#   kubectl support-bundle kubermatic-support-bundle.yaml
+#
+# Node collectors run a short-lived privileged DaemonSet in kube-system that
+# reads diagnostics from each node (nothing is written to the nodes) and is
+# deleted afterwards. Air-gapped: mirror quay.io/kubermatic/support and
+# replace every image reference below.
+apiVersion: troubleshoot.sh/v1beta2
+kind: SupportBundle
+metadata:
+  name: kubermatic-support
+spec:
+  collectors:
+    - clusterInfo: {}
+    - clusterResources: {}
+    - runDaemonSet:
+        name: node-system
+        namespace: kube-system
+        timeout: 150s
+        podSpec:
+          hostPID: true
+          hostNetwork: true
+          automountServiceAccountToken: false
+          enableServiceLinks: false
+          terminationGracePeriodSeconds: 0
+          tolerations:
+            - operator: Exists
+          containers:
+            - name: collector
+              image: quay.io/kubermatic/support:v0.1.0
+              imagePullPolicy: IfNotPresent
+              args: ["system"]
+              securityContext:
+                privileged: true
+              resources:
+                requests: { cpu: 50m, memory: 64Mi }
+                limits: { memory: 512Mi }
+              volumeMounts:
+                - name: cache
+                  mountPath: /cache
+          volumes:
+            - name: cache
+              emptyDir: {}
+    - runDaemonSet:
+        name: node-journal
+        namespace: kube-system
+        timeout: 150s
+        podSpec:
+          hostPID: true
+          hostNetwork: true
+          automountServiceAccountToken: false
+          enableServiceLinks: false
+          terminationGracePeriodSeconds: 0
+          tolerations:
+            - operator: Exists
+          containers:
+            - name: collector
+              image: quay.io/kubermatic/support:v0.1.0
+              imagePullPolicy: IfNotPresent
+              args: ["journal"]
+              env:
+                - name: JOURNAL_SINCE
+                  value: "-48h"
+              securityContext:
+                privileged: true
+              resources:
+                requests: { cpu: 50m, memory: 64Mi }
+                limits: { memory: 512Mi }
+              volumeMounts:
+                - name: cache
+                  mountPath: /cache
+          volumes:
+            - name: cache
+              emptyDir: {}
+    - runDaemonSet:
+        name: node-network
+        namespace: kube-system
+        timeout: 150s
+        podSpec:
+          hostPID: true
+          hostNetwork: true
+          automountServiceAccountToken: false
+          enableServiceLinks: false
+          terminationGracePeriodSeconds: 0
+          tolerations:
+            - operator: Exists
+          containers:
+            - name: collector
+              image: quay.io/kubermatic/support:v0.1.0
+              imagePullPolicy: IfNotPresent
+              args: ["network"]
+              securityContext:
+                privileged: true
+              resources:
+                requests: { cpu: 50m, memory: 64Mi }
+                limits: { memory: 512Mi }
+              volumeMounts:
+                - name: cache
+                  mountPath: /cache
+          volumes:
+            - name: cache
+              emptyDir: {}
+    - runDaemonSet:
+        name: node-kubernetes
+        namespace: kube-system
+        timeout: 150s
+        podSpec:
+          hostPID: true
+          hostNetwork: true
+          automountServiceAccountToken: false
+          enableServiceLinks: false
+          terminationGracePeriodSeconds: 0
+          tolerations:
+            - operator: Exists
+          containers:
+            - name: collector
+              image: quay.io/kubermatic/support:v0.1.0
+              imagePullPolicy: IfNotPresent
+              args: ["kubernetes"]
+              securityContext:
+                privileged: true
+              resources:
+                requests: { cpu: 50m, memory: 64Mi }
+                limits: { memory: 512Mi }
+              volumeMounts:
+                - name: cache
+                  mountPath: /cache
+          volumes:
+            - name: cache
+              emptyDir: {}
