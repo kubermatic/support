@@ -10,6 +10,11 @@
 # node-collector/collect.sh stops starting new sections after MODULE_DEADLINE
 # (100s), so a node with a hung service still returns partial output within
 # the 150s collector timeout.
+#
+# The Redactor document at the end masks credentials in the collected
+# Kubernetes resources (KKP Presets, KubermaticConfiguration, Cluster
+# encryption keys, Application Helm values, last-applied-configuration
+# annotations), which Troubleshoot's built-in redactors do not cover.
 apiVersion: troubleshoot.sh/v1beta2
 kind: SupportBundle
 metadata:
@@ -133,3 +138,40 @@ spec:
           volumes:
             - name: cache
               emptyDir: {}
+---
+apiVersion: troubleshoot.sh/v1beta2
+kind: Redactor
+metadata:
+  name: kubermatic
+spec:
+  redactors:
+    - name: credential-named string values
+      fileSelector:
+        files:
+          - "cluster-resources/**"
+      removals:
+        regex:
+          - redactor: '(?i)^(\s*"[^"]*(?:password|passwd|secret|token|apikey|api_key|accesskeyid|secretaccesskey|accesskeysecret|privatekey|private_key|serviceaccountkey|cookiekey|cookiehashkey|credential|credentials|applicationcredentialid|kubeconfig|valuesblock)"\s*:\s*")(?P<mask>(?:\\.|[^"\\])*)(".*)$'
+          - redactor: '^(\s*"serviceAccount"\s*:\s*")(?P<mask>(?:\\.|[^"\\])*)(".*)$'
+          - redactor: '^(\s*"kubectl\.kubernetes\.io/last-applied-configuration"\s*:\s*")(?P<mask>(?:\\.|[^"\\])*)(".*)$'
+    - name: cluster encryption keys
+      fileSelector:
+        files:
+          - "cluster-resources/custom-resources/clusters.kubermatic.k8c.io.json"
+      removals:
+        yamlPath:
+          - "*.spec.encryptionConfiguration.secretbox.keys.*.value"
+    - name: application installation Helm values
+      fileSelector:
+        files:
+          - "cluster-resources/custom-resources/applicationinstallations.apps.kubermatic.k8c.io/*.json"
+      removals:
+        yamlPath:
+          - "*.spec.values"
+    - name: application definition Helm values
+      fileSelector:
+        files:
+          - "cluster-resources/custom-resources/applicationdefinitions.apps.kubermatic.k8c.io.json"
+      removals:
+        yamlPath:
+          - "*.spec.defaultValues"

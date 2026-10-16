@@ -8,7 +8,11 @@ setup() {
 }
 
 yqs() {
-    yq "$1" "$SPEC"
+    yq ea "select(.kind == \"SupportBundle\") | $1" "$SPEC"
+}
+
+yqr() {
+    yq ea "select(.kind == \"Redactor\") | $1" "$SPEC"
 }
 
 @test "spec is a SupportBundle" {
@@ -55,4 +59,15 @@ yqs() {
 
 @test "cluster-level collectors are present" {
     [ "$(yqs '[.spec.collectors[] | select(has("clusterInfo") or has("clusterResources"))] | length')" = 2 ]
+}
+
+@test "a Redactor document masks credentials in cluster resources only" {
+    [ "$(yqr '.apiVersion')" = "troubleshoot.sh/v1beta2" ]
+    [ "$(yqr '.metadata.name')" = "kubermatic" ]
+    [ "$(yqr '.spec.redactors | length')" -gt 0 ]
+}
+
+@test "every redactor is limited to cluster resources" {
+    [ "$(yqr '[.spec.redactors[] | select((.fileSelector.files | length) > 0)] | length')" = "$(yqr '.spec.redactors | length')" ]
+    [ "$(yqr '[.spec.redactors[].fileSelector.files[] | select(test("^cluster-resources/") | not)] | length')" = 0 ]
 }

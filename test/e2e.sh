@@ -29,6 +29,15 @@ fi
 kind get kubeconfig --name "$CLUSTER" >"$OUT/kubeconfig"
 export KUBECONFIG="$OUT/kubeconfig"
 
+FIXTURE="$ROOT/test/fixtures/kkp-credentials.yaml"
+yq 'select(.kind == "CustomResourceDefinition")' "$FIXTURE" | kubectl apply -f -
+kubectl wait --for=condition=Established --timeout=60s crd \
+    presets.kubermatic.k8c.io clusters.kubermatic.k8c.io \
+    kubermaticconfigurations.kubermatic.k8c.io seeds.kubermatic.k8c.io \
+    applicationinstallations.apps.kubermatic.k8c.io \
+    applicationdefinitions.apps.kubermatic.k8c.io widgets.example.com
+kubectl apply -f "$FIXTURE"
+
 docker build --build-arg VERSION=e2e -t "$IMAGE" "$ROOT/node-collector"
 kind load docker-image "$IMAGE" --name "$CLUSTER"
 
@@ -38,7 +47,7 @@ for node in $nodes; do
     docker exec "$node" ls -A /tmp >"$OUT/tmp-before-$node.txt"
 done
 
-IMAGE="$IMAGE" yq '(.spec.collectors[] | select(has("runDaemonSet")) | .runDaemonSet.podSpec.containers[0].image) = strenv(IMAGE)' \
+IMAGE="$IMAGE" yq '(select(.kind == "SupportBundle") | .spec.collectors[] | select(has("runDaemonSet")) | .runDaemonSet.podSpec.containers[0].image) = strenv(IMAGE)' \
     "$ROOT/bundle/kubermatic-support-bundle.yaml" >"$OUT/spec.yaml"
 
 (cd "$OUT" && support-bundle --interactive=false spec.yaml)
@@ -46,6 +55,7 @@ bundle=$(ls "$OUT"/support-bundle-*.tar.gz)
 
 # shellcheck disable=SC2086 # one argument per node
 "$ROOT/test/verify-bundle.sh" "$bundle" $nodes
+"$ROOT/test/verify-redaction.sh" "$bundle"
 
 for node in $nodes; do
     docker exec "$node" ls -A /tmp >"$OUT/tmp-after-$node.txt"
