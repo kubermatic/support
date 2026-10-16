@@ -39,10 +39,12 @@ and Secret contents are not collected; PEM private key blocks and kubeconfig
 containerd configuration, credential values in cloud-init logs, and values of
 command-line flags such as `--token`, `--password` or `--client-secret` are
 replaced with `REDACTED` (credential names are matched case-insensitively), and Troubleshoot's
-built-in redactors are applied to the whole bundle. Credential fields in
-collected Kubernetes and custom resources (for example KKP Presets,
-KubermaticConfiguration, Cluster encryption keys and Application Helm values)
-and `last-applied-configuration` annotations are redacted as well. Review the bundle before
+built-in redactors are applied to the whole bundle. Credential-named string
+fields in custom resources (for example KKP Presets, KubermaticConfiguration,
+Cluster and ClusterTemplate encryption keys and Application Helm values) and
+`last-applied-configuration` and KKP `initial-*-request` annotations are
+redacted as well. Free-text content such as event messages and ConfigMap data
+is only covered by Troubleshoot's built-in redactors, so review the bundle before
 uploading if your policies require it.
 
 ## Air-gapped environments

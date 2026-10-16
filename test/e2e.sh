@@ -32,7 +32,7 @@ export KUBECONFIG="$OUT/kubeconfig"
 FIXTURE="$ROOT/test/fixtures/kkp-credentials.yaml"
 yq 'select(.kind == "CustomResourceDefinition")' "$FIXTURE" | kubectl apply -f -
 kubectl wait --for=condition=Established --timeout=60s crd \
-    presets.kubermatic.k8c.io clusters.kubermatic.k8c.io \
+    presets.kubermatic.k8c.io clusters.kubermatic.k8c.io clustertemplates.kubermatic.k8c.io \
     kubermaticconfigurations.kubermatic.k8c.io seeds.kubermatic.k8c.io \
     applicationinstallations.apps.kubermatic.k8c.io \
     applicationdefinitions.apps.kubermatic.k8c.io widgets.example.com

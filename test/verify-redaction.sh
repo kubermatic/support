@@ -20,6 +20,7 @@ fail() {
 }
 
 for plural in presets.kubermatic.k8c.io clusters.kubermatic.k8c.io \
+    clustertemplates.kubermatic.k8c.io \
     kubermaticconfigurations.kubermatic.k8c.io seeds.kubermatic.k8c.io \
     applicationinstallations.apps.kubermatic.k8c.io \
     applicationdefinitions.apps.kubermatic.k8c.io widgets.example.com; do
@@ -42,6 +43,17 @@ while read -r keep; do
         fail "redacted too much, missing $keep"
     fi
 done <"$work.keep"
+
+for plural in clusters clustertemplates; do
+    file=$(find "$work" -path "*cluster-resources/custom-resources/$plural.kubermatic.k8c.io.json" | head -n 1)
+    if ! python3 -m json.tool "$file" >/dev/null 2>&1; then
+        fail "$plural.kubermatic.k8c.io.json is not valid JSON"
+    fi
+done
+
+if ! find "$work" -path "*cluster-resources/pods/*" -type f -exec grep -lE '"serviceAccount": "[^*"]' {} + | grep -q .; then
+    fail "pods lost their spec.serviceAccount value"
+fi
 
 if [ "$failures" -ne 0 ]; then
     echo "verify-redaction: $failures failure(s)" >&2

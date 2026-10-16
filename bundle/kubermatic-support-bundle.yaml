@@ -152,15 +152,28 @@ spec:
       removals:
         regex:
           - redactor: '(?i)^(\s*"[^"]*(?:password|passwd|secret|token|apikey|api_key|accesskeyid|secretaccesskey|accesskeysecret|privatekey|private_key|serviceaccountkey|cookiekey|cookiehashkey|credential|credentials|applicationcredentialid|kubeconfig|valuesblock)"\s*:\s*")(?P<mask>(?:\\.|[^"\\])*)(".*)$'
-          - redactor: '^(\s*"serviceAccount"\s*:\s*")(?P<mask>(?:\\.|[^"\\])*)(".*)$'
           - redactor: '^(\s*"kubectl\.kubernetes\.io/last-applied-configuration"\s*:\s*")(?P<mask>(?:\\.|[^"\\])*)(".*)$'
-    - name: cluster encryption keys
+          - redactor: '^(\s*"kubermatic\.io/initial-(?:application-installations|cni-values|machinedeployment)-request"\s*:\s*")(?P<mask>(?:\\.|[^"\\])*)(".*)$'
+    # Pods keep their deprecated spec.serviceAccount string, only CRs are masked.
+    - name: serviceAccount string in custom resources
+      fileSelector:
+        files:
+          - "cluster-resources/custom-resources/**"
+      removals:
+        regex:
+          - redactor: '^(\s*"serviceAccount"\s*:\s*")(?P<mask>(?:\\.|[^"\\])*)(".*)$'
+    # A regex (not yamlPath) keeps these files valid JSON. It masks any 44-char
+    # base64 "value" in them, which is acceptable over-redaction.
+    - name: cluster and cluster template encryption keys
       fileSelector:
         files:
           - "cluster-resources/custom-resources/clusters.kubermatic.k8c.io.json"
+          - "cluster-resources/custom-resources/clustertemplates.kubermatic.k8c.io.json"
       removals:
-        yamlPath:
-          - "*.spec.encryptionConfiguration.secretbox.keys.*.value"
+        regex:
+          - redactor: '^(\s*"value"\s*:\s*")(?P<mask>[A-Za-z0-9+/]{43}=)(".*)$'
+    # Trade-off: yamlPath rewrites the matched files as YAML text under their
+    # .json names, but arbitrary Helm values cannot be matched by key names.
     - name: application installation Helm values
       fileSelector:
         files:
