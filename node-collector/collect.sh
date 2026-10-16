@@ -12,6 +12,7 @@ SECTION_TIMEOUT="${SECTION_TIMEOUT:-60}"
 JOURNAL_SINCE="${JOURNAL_SINCE:--48h}"
 CRI_ENDPOINT="${CRI_ENDPOINT:-unix:///run/containerd/containerd.sock}"
 REDACT_SED='s/("?(password|auth|[Aa]uthorization|identitytoken|identityToken|registrytoken|registryToken|token)"?[[:space:]]*[:=][[:space:]]*).*/\1"REDACTED"/'
+REDACT_ARGS_SED='s/(^|[[:space:]"'"'"'])(--[A-Za-z0-9_-]*(token|password|secret|certificate-key)[= ]+)[^[:space:]"'"'"',]+/\1\2REDACTED/g'
 
 # stdin is the script itself, so commands must never read it.
 if timeout 1 true </dev/null >/dev/null 2>&1; then _HAVE_TIMEOUT=1; else _HAVE_TIMEOUT=; fi
@@ -22,6 +23,13 @@ _run() {
     else
         "$@" </dev/null
     fi
+}
+
+_limit_output() {
+    case "$1" in
+        all) cat ;;
+        *) "$1" -c "$2" ;;
+    esac
 }
 
 # _section mode(all|head|tail) max-bytes title command [args...]
@@ -35,16 +43,15 @@ _section() {
     if ! command -v "$1" >/dev/null 2>&1; then
         printf '(command not found: %s)\n' "$1"
         _rc=127
-    elif [ "$_mode" = all ]; then
-        _run "$@" 2>&1
-        _rc=$?
     else
-        # fd 3 carries the command's exit code past the head/tail pipe.
+        # fd 3 carries the command's exit code past the redaction/limit pipe.
         {
-            _rc=$({ { _run "$@" 2>&1; echo "$?" >&3; } | "$_mode" -c "$_limit" >&4; } 3>&1)
+            _rc=$({ { _run "$@" 2>&1; echo "$?" >&3; } | sed -E "$REDACT_ARGS_SED" | _limit_output "$_mode" "$_limit" >&4; } 3>&1)
         } 4>&1
-        if [ "$_mode" = head ]; then _which=first; else _which=last; fi
-        printf '\n(output limited to the %s %s bytes)' "$_which" "$_limit"
+        if [ "$_mode" != all ]; then
+            if [ "$_mode" = head ]; then _which=first; else _which=last; fi
+            printf '\n(output limited to the %s %s bytes)' "$_which" "$_limit"
+        fi
     fi
     printf '\n===== END %s (exit=%s) =====\n\n' "$_title" "${_rc:-unknown}"
 }
@@ -86,8 +93,8 @@ collect_journal() {
     section_tail 1048576 "journal kernel" journalctl -k --since "$JOURNAL_SINCE" --no-pager -o short-iso
     section_tail 524288 "journal warnings" journalctl -p warning --since "$JOURNAL_SINCE" --no-pager -o short-iso
     section_tail 524288 "dmesg" dmesg -T
-    section_tail 524288 "cloud-init.log" cat /var/log/cloud-init.log
-    section_tail 524288 "cloud-init-output.log" cat /var/log/cloud-init-output.log
+    section_tail 524288 "cloud-init.log" sh -c 'sed -E "$1" /var/log/cloud-init.log' _ "$REDACT_SED"
+    section_tail 524288 "cloud-init-output.log" sh -c 'sed -E "$1" /var/log/cloud-init-output.log' _ "$REDACT_SED"
 }
 
 collect_network() {

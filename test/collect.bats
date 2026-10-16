@@ -45,10 +45,25 @@ lib() {
 }
 
 @test "section_tail keeps the last bytes and the exit code" {
-    lib 'section_tail 5 tail-test sh -c "printf 0123456789; exit 4"'
+    lib 'section_tail 6 tail-test sh -c "printf 0123456789; echo; exit 4"'
     [ "${lines[2]}" = "56789" ]
-    [ "${lines[3]}" = "(output limited to the last 5 bytes)" ]
+    [ "${lines[3]}" = "(output limited to the last 6 bytes)" ]
     [ "${lines[4]}" = "===== END tail-test (exit=4) =====" ]
+}
+
+@test "REDACT_ARGS_SED redacts secret command-line flags only" {
+    lib 'printf "%s\n" "kubeadm join 10.0.0.1:6443 --token abcdef.0123456789abcdef --discovery-token-ca-cert-hash sha256:1234" "agent --password=hunter2 --client-secret=s3 --certificate-key abc" "  \"--token=xyz\"," "my-secret 0 abc" "kubeadm token create --token-ttl 24h" | sed -E "$REDACT_ARGS_SED"'
+    [ "$status" -eq 0 ]
+    [ "${lines[0]}" = 'kubeadm join 10.0.0.1:6443 --token REDACTED --discovery-token-ca-cert-hash sha256:1234' ]
+    [ "${lines[1]}" = 'agent --password=REDACTED --client-secret=REDACTED --certificate-key REDACTED' ]
+    [ "${lines[2]}" = '  "--token=REDACTED",' ]
+    [ "${lines[3]}" = 'my-secret 0 abc' ]
+    [ "${lines[4]}" = 'kubeadm token create --token-ttl 24h' ]
+}
+
+@test "section redacts secret flags in every command output" {
+    lib 'section flags echo "run --token abc --x y"'
+    [ "${lines[2]}" = "run --token REDACTED --x y" ]
 }
 
 @test "titles with spaces are preserved" {
