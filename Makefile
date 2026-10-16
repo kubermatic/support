@@ -18,3 +18,6 @@ image:
 
 e2e: tools
 	test/e2e.sh
+
+release:
+	hack/release-image.sh $$(cat node-collector/VERSION)
