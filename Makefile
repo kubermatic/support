@@ -12,3 +12,6 @@ lint:
 
 test: tools
 	$(CURDIR)/.tools/bin/bats test/
+
+image:
+	docker build --build-arg VERSION=$$(cat node-collector/VERSION) -t $(IMAGE):dev node-collector
