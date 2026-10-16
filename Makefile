@@ -5,3 +5,10 @@ IMAGE ?= quay.io/kubermatic/support
 
 tools:
 	hack/install-tools.sh
+
+lint:
+	shellcheck -s sh node-collector/*.sh
+	shellcheck hack/*.sh $(wildcard test/*.sh)
+
+test: tools
+	$(CURDIR)/.tools/bin/bats test/
